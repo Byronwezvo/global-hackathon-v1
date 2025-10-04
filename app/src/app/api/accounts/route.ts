@@ -1,4 +1,4 @@
-import { Account } from "@prisma/client";
+import { Accounts } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { verifyToken } from "@/lib/authUtils";
@@ -17,7 +17,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ message: "Invalid token" }, { status: 401 });
     }
 
-    const accounts = await prisma.account.findMany({
+    const accounts = await prisma.accounts.findMany({
       where: { userId: user.userId },
     });
 
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
       userId: user.userId,
     };
 
-    const newAccount = await prisma.account.create({ data: accountData });
+    const newAccount = await prisma.accounts.create({ data: accountData });
 
     return NextResponse.json({
       message: "Account created successfully!",

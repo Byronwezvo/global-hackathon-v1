@@ -25,20 +25,22 @@ enum AccountType {
 }
 
 model Users {
-  id        String    @id @default(uuid())
+  id        String     @id @default(uuid())
   name      String
-  email     String    @unique
+  email     String     @unique
   password  String
-  role      Role      @default(USER)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  accounts  Account[]
+  role      Role       @default(USER)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  accounts  Accounts[]
 }
 
-model Account {
+model Accounts {
   id           String        @id @default(uuid())
   userId       String
   name         String        @unique
+  description  String?
+  currency     String?
   type         AccountType
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
@@ -57,7 +59,7 @@ model Transaction {
   description String?
   createdAt   DateTime    @default(now())
 
-  account Account @relation(fields: [accountId], references: [id])
+  account Accounts @relation(fields: [accountId], references: [id])
 
   @@index([accountId])
 }
