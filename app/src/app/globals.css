@@ -51,3 +51,7 @@ a {
 .ant-menu-item-selected .anticon {
   color: #fff !important;
 }
+
+.ant-layout-sider-trigger {
+  background-color: #000 !important;
+}
