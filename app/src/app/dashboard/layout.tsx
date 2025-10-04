@@ -7,6 +7,7 @@ import {
   PieChartOutlined,
   BankOutlined,
   SettingOutlined,
+  MoneyCollectOutlined,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import { Layout, Menu, theme } from "antd";
@@ -27,6 +28,7 @@ function getItem(
 
 const items: MenuItem[] = [
   getItem("Dashboard", "dashboard", <PieChartOutlined />),
+  getItem("Transactions", "dashboard/transactions", <MoneyCollectOutlined />),
   getItem("Accounts", "dashboard/accounts", <BankOutlined />),
   getItem("Settings", "settings", <SettingOutlined />),
 ];
