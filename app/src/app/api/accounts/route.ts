@@ -10,6 +10,7 @@ export async function GET() {
 // This route is used when creating a new account
 export async function POST(req: Request) {
   try {
+    // Parse request body
     const data: Account = await req.json();
 
     // Encrypt password using bcrypt
