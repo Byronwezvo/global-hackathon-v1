@@ -250,6 +250,7 @@ const TransactionsPage: React.FC = () => {
           columns={columns}
           dataSource={transactions}
           rowKey="id"
+          size="small"
           loading={loading}
           pagination={{
             current: page,

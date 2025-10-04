@@ -155,6 +155,7 @@ const AccountsPage: React.FC = () => {
           columns={columns}
           dataSource={accounts}
           rowKey="id"
+          size="small"
           loading={loading}
           pagination={false}
           style={{ border: 0 }}
