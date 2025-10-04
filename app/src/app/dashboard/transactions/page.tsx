@@ -1,10 +1,27 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { Card, Table, Button, Modal, Form, Input, Select, message } from "antd";
+import React, { useEffect, useState, useCallback } from "react";
+import {
+  Card,
+  Table,
+  Button,
+  Modal,
+  Form,
+  Input,
+  Select,
+  message,
+  Space,
+  DatePicker,
+  Checkbox,
+  Row,
+  Col,
+} from "antd";
 import { useSelector } from "react-redux";
+import moment, { Moment } from "moment";
+import ReactMarkdown from "react-markdown";
 
 const { Option } = Select;
+const { RangePicker } = DatePicker;
 
 interface Account {
   id: string;
@@ -25,6 +42,12 @@ interface Transaction {
   updatedAt: string;
 }
 
+interface Filters {
+  dateRange: [Moment | null, Moment | null];
+  accountIds: string[];
+  types: Array<"credit" | "debit">;
+}
+
 const TransactionsPage: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -36,11 +59,19 @@ const TransactionsPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [pageSize] = useState(10);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const [filters, setFilters] = useState<Filters>({
+    dateRange: [null, null],
+    accountIds: [],
+    types: [],
+  });
 
   const userToken = useSelector((state: any) => state.auth.token);
   const [form] = Form.useForm();
 
-  // Ant Design message instance
   const [messageApi, contextHolder] = message.useMessage();
 
   const showMessage = (type: "success" | "error" | "info", text: string) => {
@@ -55,53 +86,152 @@ const TransactionsPage: React.FC = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to fetch accounts");
       setAccounts(data.accounts);
-      showMessage("success", "Accounts fetched successfully");
     } catch (err: any) {
       console.error(err);
       showMessage("error", err.message || "Error fetching accounts");
     }
   };
 
-  const fetchTransactions = async (pageNumber = 1) => {
-    setLoading(true);
-    try {
-      const res = await fetch(
-        `/api/transactions?page=${pageNumber}&limit=${pageSize}`,
-        {
+  const fetchTransactions = useCallback(
+    async (pageNumber = 1, currentFilters: Filters = filters) => {
+      setLoading(true);
+      try {
+        const [startDateMoment, endDateMoment] = currentFilters.dateRange;
+
+        const params = new URLSearchParams();
+        params.append("page", pageNumber.toString());
+        params.append("limit", pageSize.toString());
+
+        if (startDateMoment)
+          params.append("startDate", startDateMoment.format("YYYY-MM-DD"));
+        if (endDateMoment)
+          params.append("endDate", endDateMoment.format("YYYY-MM-DD"));
+
+        // ✅ Multiple accounts
+        currentFilters.accountIds.forEach((id) =>
+          params.append("accountIds", id)
+        );
+
+        // ✅ Multiple types
+        currentFilters.types.forEach((t) => params.append("types", t));
+
+        const res = await fetch(`/api/transactions?${params.toString()}`, {
           headers: { Authorization: `Bearer ${userToken}` },
-        }
-      );
-      const data = await res.json();
-      if (!res.ok)
-        throw new Error(data.message || "Failed to fetch transactions");
+        });
+        const data = await res.json();
+        if (!res.ok)
+          throw new Error(data.message || "Failed to fetch transactions");
 
-      setTransactions(
-        data.transactions.map((t: Transaction) => ({
-          ...t,
-          accountName: t.account?.name || "",
-        }))
-      );
-      setTotal(data.total);
-      setPage(data.page);
-
-      showMessage("success", "Transactions fetched successfully");
-    } catch (err: any) {
-      console.error(err);
-      showMessage("error", err.message || "Error fetching transactions");
-    } finally {
-      setLoading(false);
-    }
-  };
+        setTransactions(
+          data.transactions.map(
+            (t: Transaction & { account: { name: string } }) => ({
+              ...t,
+              accountName: t.account?.name || (t as any).accountName || "N/A",
+            })
+          )
+        );
+        setTotal(data.total);
+        setPage(data.page);
+      } catch (err: any) {
+        console.error(err);
+        showMessage("error", err.message || "Error fetching transactions");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [userToken, filters, pageSize]
+  );
 
   useEffect(() => {
     fetchAccounts();
-    fetchTransactions();
-  }, []);
+  }, [userToken]);
+
+  useEffect(() => {
+    fetchTransactions(page, filters);
+  }, [page, filters, fetchTransactions]);
+
+  const handleFilterChange = (newFilters: Partial<Filters>) => {
+    setFilters((prev) => ({ ...prev, ...newFilters }));
+    setPage(1);
+  };
+
+  const handleAiAnalysis = async () => {
+    setAiLoading(true);
+    setAiModalOpen(true);
+    setAiAnalysis("");
+
+    try {
+      const [startDateMoment, endDateMoment] = filters.dateRange;
+
+      const params = new URLSearchParams();
+      params.append("limit", "10000");
+
+      if (startDateMoment) {
+        params.append("startDate", startDateMoment.format("YYYY-MM-DD"));
+      }
+      if (endDateMoment) {
+        params.append("endDate", endDateMoment.format("YYYY-MM-DD"));
+      }
+      if (filters.accountIds.length > 0) {
+        params.append("accountIds", filters.accountIds.join(","));
+      }
+      if (filters.types.length > 0) {
+        params.append("types", filters.types.join(","));
+      }
+
+      const dataRes = await fetch(`/api/transactions?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${userToken}` },
+      });
+      const data = await dataRes.json();
+      if (!dataRes.ok)
+        throw new Error(data.message || "Failed to fetch data for AI");
+
+      if (data.transactions.length === 0) {
+        throw new Error(
+          "No transactions found for the selected filters to analyze."
+        );
+      }
+
+      const transactionsToAnalyze = data.transactions.map((t: Transaction) => ({
+        amount: t.amount,
+        type: t.type,
+        description: t.description,
+        accountName: t.accountName,
+        createdAt: t.createdAt,
+      }));
+
+      const aiRes = await fetch("/api/ai/financial-analysis", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${userToken}`,
+        },
+        body: JSON.stringify({
+          transactions: transactionsToAnalyze,
+          userQuestion:
+            "Based on my debits and credits in this data set, calculate the net balance. Give me a structured summary of income and expenses, and provide 2-3 specific, actionable suggestions on how to maximize my finances.",
+        }),
+      });
+
+      const aiData = await aiRes.json();
+      if (!aiRes.ok) throw new Error(aiData.message || "AI Analysis Failed");
+
+      setAiAnalysis(
+        aiData.analysisText || "Analysis completed, but no text was returned."
+      );
+      showMessage("success", "AI Analysis complete!");
+    } catch (err: any) {
+      console.error(err);
+      setAiAnalysis(`Error during analysis: ${err.message}`);
+      showMessage("error", err.message || "Error running AI analysis");
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const openEditModal = async (transaction: Transaction) => {
     try {
       setLoading(true);
-      // Fetch single transaction from API to ensure latest data
       const res = await fetch(`/api/transactions/${transaction.id}`, {
         headers: { Authorization: `Bearer ${userToken}` },
       });
@@ -109,19 +239,23 @@ const TransactionsPage: React.FC = () => {
       if (!res.ok)
         throw new Error(data.message || "Failed to fetch transaction");
 
-      setEditingTransaction(data);
-      setSelectedType(data.type);
+      const finalData = {
+        ...data,
+        accountId: data.accountId || data.account.id,
+      };
+
+      setEditingTransaction(finalData);
+      setSelectedType(finalData.type);
 
       form.setFieldsValue({
-        accountId: data.accountId,
-        amount: data.amount,
+        accountId: finalData.accountId,
+        amount: finalData.amount,
         description: data.description,
         status: data.status,
         reference: data.reference,
       });
 
       setModalOpen(true);
-      showMessage("success", "Transaction loaded for editing");
     } catch (err: any) {
       console.error(err);
       showMessage("error", err.message || "Error loading transaction");
@@ -142,7 +276,7 @@ const TransactionsPage: React.FC = () => {
       const transactionData = {
         ...values,
         type: selectedType,
-        amount: parseFloat(values.amount), // Ensure float
+        amount: parseFloat(values.amount),
       };
 
       const url = editingTransaction
@@ -218,19 +352,75 @@ const TransactionsPage: React.FC = () => {
     },
   ];
 
-  return (
-    <div>
-      {contextHolder}
-      <Card
-        title={
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <span>Transactions</span>
+  // Custom component for the Card Title to handle the two-line layout
+  const TitleContent = (
+    <div style={{ width: "100%" }}>
+      {/* 1. Main Header Line (Title and Buttons) */}
+      <Row justify="space-between" align="middle" style={{ marginBottom: 10 }}>
+        <Col>
+          <span style={{ fontSize: "1.2em", fontWeight: "bold" }}>
+            Transactions
+          </span>
+        </Col>
+        <Col>
+          <Space>
+            {/* 2. Filter Line (The area where you drew the black line) */}
+            <Row justify="start" gutter={[16, 0]}>
+              <Col>
+                <Select
+                  mode="multiple"
+                  allowClear
+                  placeholder="Type(s)"
+                  value={filters.types}
+                  onChange={(selectedTypes) =>
+                    handleFilterChange({
+                      types: selectedTypes as Array<"credit" | "debit">,
+                    })
+                  }
+                  style={{ minWidth: 120 }}
+                >
+                  <Option value="credit">Credit</Option>
+                  <Option value="debit">Debit</Option>
+                </Select>
+              </Col>
+              <Col>
+                <Select
+                  mode="multiple"
+                  allowClear
+                  placeholder="Account(s)"
+                  value={filters.accountIds}
+                  onChange={(selectedIds) =>
+                    handleFilterChange({ accountIds: selectedIds as string[] })
+                  }
+                  style={{
+                    minWidth: 180,
+                    background: "#fffbe6",
+                  }} // Highlight placeholder visually
+                  dropdownStyle={{ zIndex: 2000 }} // Ensure dropdown is above other elements
+                >
+                  {accounts.map((acc) => (
+                    <Option key={acc.id} value={acc.id}>
+                      {acc.name}
+                    </Option>
+                  ))}
+                </Select>
+              </Col>
+              <Col>
+                <RangePicker
+                  value={filters.dateRange as [Moment | null, Moment | null]}
+                  onChange={(dates) =>
+                    handleFilterChange({
+                      dateRange: dates as [Moment | null, Moment | null],
+                    })
+                  }
+                  placeholder={["Start Date", "End Date"]}
+                  style={{ width: 250 }}
+                />
+              </Col>
+            </Row>
+            <Button onClick={handleAiAnalysis} loading={aiLoading}>
+              AI Financial Advisor 🧠
+            </Button>
             <Button
               type="primary"
               onClick={() => {
@@ -242,8 +432,17 @@ const TransactionsPage: React.FC = () => {
             >
               Create Transaction
             </Button>
-          </div>
-        }
+          </Space>
+        </Col>
+      </Row>
+    </div>
+  );
+
+  return (
+    <div>
+      {contextHolder}
+      <Card
+        title={TitleContent} // Use the custom TitleContent component
         style={{ border: 0, boxShadow: "none" }}
       >
         <Table
@@ -256,7 +455,7 @@ const TransactionsPage: React.FC = () => {
             current: page,
             pageSize,
             total,
-            onChange: (p) => fetchTransactions(p),
+            onChange: (p) => setPage(p),
           }}
           style={{ border: 0 }}
         />
@@ -327,6 +526,76 @@ const TransactionsPage: React.FC = () => {
             </Button>
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title="AI Financial Advisor Analysis"
+        open={aiModalOpen}
+        onCancel={() => setAiModalOpen(false)}
+        footer={[
+          <Button key="close" onClick={() => setAiModalOpen(false)}>
+            Close
+          </Button>,
+        ]}
+        width={800}
+        bodyStyle={{ maxHeight: "500px", overflow: "hidden", padding: 0 }}
+      >
+        {aiLoading ? (
+          <div style={{ padding: "20px", textAlign: "center" }}>
+            <p>
+              Analyzing transactions using Gemini... This may take a moment.
+            </p>
+          </div>
+        ) : (
+          <div
+            style={{
+              height: "500px",
+              overflowY: "auto",
+              padding: "20px",
+              // backgroundColor: "#fafafa",
+            }}
+            className="ai-analysis-container"
+          >
+            <ReactMarkdown
+              components={{
+                h1: ({ children }) => (
+                  <h2
+                    style={{
+                      fontSize: "20px",
+                      margin: "15px 0",
+                      color: "#1890ff",
+                    }}
+                  >
+                    {children}
+                  </h2>
+                ),
+                h2: ({ children }) => (
+                  <h3
+                    style={{
+                      fontSize: "18px",
+                      margin: "12px 0",
+                      color: "#52c41a",
+                    }}
+                  >
+                    {children}
+                  </h3>
+                ),
+                li: ({ children }) => (
+                  <li style={{ marginBottom: "6px", lineHeight: 1.6 }}>
+                    {children}
+                  </li>
+                ),
+                p: ({ children }) => (
+                  <p style={{ marginBottom: "10px", lineHeight: 1.6 }}>
+                    {children}
+                  </p>
+                ),
+              }}
+            >
+              {aiAnalysis}
+            </ReactMarkdown>
+          </div>
+        )}
       </Modal>
     </div>
   );

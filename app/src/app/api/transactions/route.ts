@@ -6,46 +6,91 @@ import { verifyToken } from "@/lib/authUtils";
 
 export async function GET(req: NextRequest) {
   try {
-    //  Auth check
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    if (!authHeader)
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
 
     const token = authHeader.split(" ")[1];
     const user = verifyToken(token);
-    if (!user) {
+    if (!user)
       return NextResponse.json({ message: "Invalid token" }, { status: 401 });
-    }
 
-    //  Pagination
-    const url = new URL(req.url);
-    const page = parseInt(url.searchParams.get("page") || "1"); // default page 1
-    const limit = parseInt(url.searchParams.get("limit") || "10"); // default 10 per page
+    const searchParams = req.nextUrl.searchParams;
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "10");
     const skip = (page - 1) * limit;
 
-    const [transactions, total] = await prisma.$transaction([
-      prisma.transaction.findMany({
-        where: { account: { userId: user.userId } },
-        orderBy: { createdAt: "desc" },
-        skip,
-        take: limit,
-        include: { account: true }, // optional: include related account
-      }),
-      prisma.transaction.count({ where: { account: { userId: user.userId } } }),
-    ]);
+    // --- NEW FILTER PARAMS ---
+    const startDate = searchParams.get("startDate"); // YYYY-MM-DD
+    const endDate = searchParams.get("endDate"); // YYYY-MM-DD
+    const accountIdsParam = searchParams.get("accountIds"); // Comma-separated IDs
+    const typesParam = searchParams.get("types"); // Comma-separated 'credit', 'debit'
+
+    const where: any = {
+      userId: user.userId,
+    };
+
+    // Date Range Filter
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) {
+        where.createdAt.gte = new Date(startDate);
+      }
+      if (endDate) {
+        // Add one day to include the end date fully
+        const end = new Date(endDate);
+        end.setDate(end.getDate() + 1);
+        where.createdAt.lt = end;
+      }
+    }
+
+    // Account ID Filter
+    if (accountIdsParam) {
+      const accountIds = accountIdsParam.split(",");
+      if (accountIds.length > 0) {
+        where.accountId = { in: accountIds };
+      }
+    }
+
+    // Type Filter (credit/debit)
+    if (typesParam) {
+      const types = typesParam
+        .split(",")
+        .filter((t) => t === "credit" || t === "debit");
+      if (types.length > 0) {
+        where.type = { in: types };
+      }
+    }
+
+    const total = await prisma.transaction.count({ where });
+
+    const transactions = await prisma.transaction.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      include: { account: { select: { name: true } } },
+    });
+
+    // Remap data to match frontend's expected format (including account name)
+    const formattedTransactions = transactions.map((t) => ({
+      ...t,
+      // @ts-ignore: Prisma returns { account: { name: '...' } }, but we flatten it
+      accountName: t.account?.name || "N/A",
+      account: undefined, // Remove the nested account object if not needed
+    }));
 
     return NextResponse.json({
+      transactions: formattedTransactions,
+      total,
       page,
       limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-      transactions,
     });
   } catch (err) {
-    console.error("Error fetching transactions:", err);
+    console.error(err);
+    const errorMessage = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
-      { message: "Error fetching transactions", error: err },
+      { message: "Error fetching transactions list", error: errorMessage },
       { status: 500 }
     );
   }
