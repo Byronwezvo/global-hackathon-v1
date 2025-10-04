@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/authUtils";
 
 // GET a single account
 export async function GET(
-  req: Request,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -17,7 +17,7 @@ export async function GET(
     if (!user)
       return NextResponse.json({ message: "Invalid token" }, { status: 401 });
 
-    const account = await prisma.accounts.findFirst({
+    const account = await prisma.account.findFirst({
       where: { id: params.id, userId: user.userId },
     });
 
@@ -38,7 +38,7 @@ export async function GET(
 
 // PUT: update an account
 export async function PUT(
-  req: Request,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {

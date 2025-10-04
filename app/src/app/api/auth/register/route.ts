@@ -1,6 +1,6 @@
 import { Users } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcrypt";
 
 export async function GET() {
@@ -8,7 +8,7 @@ export async function GET() {
 }
 
 // This route is used when creating a new account
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     // Parse request body
     const data: Users = await req.json();

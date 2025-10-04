@@ -1,10 +1,10 @@
 import { Accounts } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/authUtils";
 
 // GET all accounts for the logged-in user
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -31,7 +31,7 @@ export async function GET(req: Request) {
 }
 
 // POST: create a new account
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
     const bodyText = await req.text();
     if (!bodyText) {
       return NextResponse.json(
-        { message: "Request body is empty" },
+        { message: "NextRequest body is empty" },
         { status: 400 }
       );
     }

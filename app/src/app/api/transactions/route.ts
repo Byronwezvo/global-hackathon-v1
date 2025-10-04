@@ -1,10 +1,10 @@
 // app/api/transactions/route.ts
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/authUtils";
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     //  Auth check
     const authHeader = req.headers.get("Authorization");
@@ -51,7 +51,7 @@ export async function GET(req: Request) {
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     // --- Auth check ---
     const authHeader = req.headers.get("Authorization");

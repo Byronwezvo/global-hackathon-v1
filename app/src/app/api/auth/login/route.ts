@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { Users } from "@prisma/client";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcrypt";
 import { generateToken } from "@/lib/authUtils";
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     // Parse request body
     const data: Users = await req.json();
