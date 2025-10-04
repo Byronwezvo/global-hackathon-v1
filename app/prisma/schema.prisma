@@ -19,7 +19,7 @@ enum Role {
   ADMIN
 }
 
-model Account {
+model Users {
   id        String   @id @default(uuid())
   name      String
   email     String   @unique
