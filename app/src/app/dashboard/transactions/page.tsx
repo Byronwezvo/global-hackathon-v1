@@ -529,71 +529,140 @@ const TransactionsPage: React.FC = () => {
       </Modal>
 
       <Modal
-        title="AI Financial Advisor Analysis"
         open={aiModalOpen}
+        title={null} // hide default title
         onCancel={() => setAiModalOpen(false)}
-        footer={[
-          <Button key="close" onClick={() => setAiModalOpen(false)}>
-            Close
-          </Button>,
-        ]}
-        width={800}
-        bodyStyle={{ maxHeight: "500px", overflow: "hidden", padding: 0 }}
+        footer={null}
+        width={720}
+        centered
       >
         {aiLoading ? (
-          <div style={{ padding: "20px", textAlign: "center" }}>
-            <p>
-              Analyzing transactions using Gemini... This may take a moment.
-            </p>
+          <div
+            style={{
+              height: 360,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexDirection: "column",
+              gap: 12,
+            }}
+          >
+            <span style={{ fontSize: 40 }}>✨</span>
+            <p style={{ color: "#888", fontSize: 15 }}>Gemini is thinking…</p>
           </div>
         ) : (
           <div
             style={{
-              height: "500px",
+              padding: "24px 32px",
+              maxHeight: "50vh",
               overflowY: "auto",
-              padding: "20px",
-              // backgroundColor: "#fafafa",
+              background: "#fff",
             }}
-            className="ai-analysis-container"
+            className="hide-scrollbar"
           >
+            {/* Header (keeps Ant Design vibe) */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 30,
+                borderBottom: "1px solid #f0f0f0",
+                paddingBottom: 30,
+              }}
+            >
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: 18,
+                  fontWeight: 600,
+                }}
+              >
+                AI Financial Advisor 🧸
+              </h2>
+            </div>
+
+            {/* Markdown Rendering */}
             <ReactMarkdown
               components={{
                 h1: ({ children }) => (
-                  <h2
-                    style={{
-                      fontSize: "20px",
-                      margin: "15px 0",
-                      color: "#1890ff",
-                    }}
-                  >
-                    {children}
-                  </h2>
-                ),
-                h2: ({ children }) => (
                   <h3
                     style={{
-                      fontSize: "18px",
-                      margin: "12px 0",
-                      color: "#52c41a",
+                      fontSize: 18,
+                      margin: "20px 0 8px",
                     }}
                   >
                     {children}
                   </h3>
                 ),
+                h2: ({ children }) => (
+                  <h4
+                    style={{
+                      fontSize: 16,
+                      margin: "16px 0 8px",
+                      color: "#52c41a",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {children}
+                  </h4>
+                ),
+                p: ({ children }) => (
+                  <p
+                    style={{
+                      margin: "0 0 12px",
+                      lineHeight: 1.7,
+                      color: "#444",
+                      fontSize: 14.5,
+                    }}
+                  >
+                    {children}
+                  </p>
+                ),
                 li: ({ children }) => (
-                  <li style={{ marginBottom: "6px", lineHeight: 1.6 }}>
+                  <li
+                    style={{
+                      marginBottom: 6,
+                      lineHeight: 1.7,
+                      color: "#444",
+                      fontSize: 14.5,
+                    }}
+                  >
                     {children}
                   </li>
                 ),
-                p: ({ children }) => (
-                  <p style={{ marginBottom: "10px", lineHeight: 1.6 }}>
+                ul: ({ children }) => (
+                  <ul style={{ paddingLeft: 20, margin: "0 0 16px" }}>
                     {children}
-                  </p>
+                  </ul>
+                ),
+                hr: () => (
+                  <hr
+                    style={{
+                      border: "none",
+                      borderTop: "1px solid #f0f0f0",
+                      margin: "20px 0",
+                    }}
+                  />
                 ),
               }}
             >
               {aiAnalysis}
             </ReactMarkdown>
+
+            {/* Footer */}
+            <div
+              style={{
+                textAlign: "center",
+                marginTop: 24,
+                borderTop: "1px solid #f0f0f0",
+                paddingTop: 16,
+              }}
+            >
+              <Button type="primary" onClick={() => setAiModalOpen(false)}>
+                Got it 🎉
+              </Button>
+            </div>
           </div>
         )}
       </Modal>
