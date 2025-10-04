@@ -17,7 +17,7 @@ export async function GET(
     if (!user)
       return NextResponse.json({ message: "Invalid token" }, { status: 401 });
 
-    const account = await prisma.account.findFirst({
+    const account = await prisma.accounts.findFirst({
       where: { id: params.id, userId: user.userId },
     });
 
@@ -28,9 +28,10 @@ export async function GET(
       );
 
     return NextResponse.json(account);
-  } catch (error) {
+  } catch (err: any) {
+    console.error(err);
     return NextResponse.json(
-      { message: "Error fetching account", error },
+      { message: "Error fetching account" },
       { status: 500 }
     );
   }
@@ -39,9 +40,10 @@ export async function GET(
 // PUT: update an account
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const resolvedParams = await params; // ✅ await first
     const authHeader = req.headers.get("Authorization");
     if (!authHeader)
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
@@ -52,21 +54,27 @@ export async function PUT(
       return NextResponse.json({ message: "Invalid token" }, { status: 401 });
 
     const body = await req.json();
-    const account = await prisma.accounts.updateMany({
-      where: { id: params.id, userId: user.userId },
-      data: body,
+
+    const dataToUpdate: any = {};
+    if (body.description !== undefined)
+      dataToUpdate.description = body.description;
+
+    const updatedAccount = await prisma.accounts.updateMany({
+      where: { id: resolvedParams.id, userId: user.userId },
+      data: dataToUpdate,
     });
 
-    if (account.count === 0)
+    if (updatedAccount.count === 0)
       return NextResponse.json(
         { message: "Account not found or not yours" },
         { status: 404 }
       );
 
     return NextResponse.json({ message: "Account updated successfully" });
-  } catch (error) {
+  } catch (err: any) {
+    console.error(err);
     return NextResponse.json(
-      { message: "Error updating account", error },
+      { message: "Error updating account" },
       { status: 500 }
     );
   }

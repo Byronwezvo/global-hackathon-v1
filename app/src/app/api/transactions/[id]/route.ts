@@ -4,9 +4,10 @@ import { verifyToken } from "@/lib/authUtils";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // ✅ params is now a Promise
 ) {
   try {
+    const { id } = await params; // ✅ await first
     const authHeader = req.headers.get("Authorization");
     if (!authHeader)
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
@@ -17,7 +18,7 @@ export async function GET(
       return NextResponse.json({ message: "Invalid token" }, { status: 401 });
 
     const transaction = await prisma.transaction.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: { account: true },
     });
 
@@ -40,9 +41,10 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // ✅ params is now a Promise
 ) {
   try {
+    const { id } = await params; // ✅ await first
     const authHeader = req.headers.get("Authorization");
     if (!authHeader)
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
@@ -53,7 +55,7 @@ export async function PUT(
       return NextResponse.json({ message: "Invalid token" }, { status: 401 });
 
     const transaction = await prisma.transaction.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
     if (!transaction || transaction.userId !== user.userId) {
       return NextResponse.json(
@@ -85,7 +87,7 @@ export async function PUT(
     }
 
     const updated = await prisma.transaction.update({
-      where: { id: params.id },
+      where: { id },
       data: { status },
     });
 
