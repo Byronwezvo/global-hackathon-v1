@@ -40,3 +40,14 @@ a {
     color-scheme: dark;
   }
 }
+
+/* Custom styles for Ant Design menu selected item */
+.ant-menu-item-selected {
+  background-color: #000 !important; /* full black */
+  color: #fff !important; /* white text */
+}
+
+/* Ensure the icon also turns white */
+.ant-menu-item-selected .anticon {
+  color: #fff !important;
+}
