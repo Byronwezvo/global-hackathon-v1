@@ -3,6 +3,8 @@
 
 import React, { useState } from "react";
 import { Tabs, Form, Input, Button, Card, message } from "antd";
+import { useDispatch } from "react-redux";
+import { loginSuccess } from "@/redux/reducers/auth";
 
 const { TabPane } = Tabs;
 
@@ -10,6 +12,9 @@ const AuthForm: React.FC = () => {
   const [loginForm] = Form.useForm();
   const [registerForm] = Form.useForm();
   const [activeTab, setActiveTab] = useState("login");
+
+  // adding redux
+  const dispatch = useDispatch();
 
   // message hook
   const [messageApi, contextHolder] = message.useMessage();
@@ -29,7 +34,13 @@ const AuthForm: React.FC = () => {
 
       if (response.ok) {
         messageApi.success("Login successful!");
-        // Save token, redirect, etc.
+        // save data to redux store
+        dispatch(loginSuccess({ user: data.account, token: data.token }));
+
+        // route user to dashboard
+        messageApi.loading("Redirecting...", 1, () => {
+          window.location.href = "/dashboard";
+        });
       } else {
         messageApi.error(data.message || "Login failed");
       }
