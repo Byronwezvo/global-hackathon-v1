@@ -27,10 +27,7 @@ function getItem(
 
 const items: MenuItem[] = [
   getItem("Dashboard", "dashboard", <PieChartOutlined />),
-  getItem("Accounts", "accounts", <BankOutlined />, [
-    getItem("New Account", "dashboard/accounts/new-account"),
-    getItem("Manage Accounts", "dashboard/accounts/manage-accounts"),
-  ]),
+  getItem("Accounts", "dashboard/accounts", <BankOutlined />),
   getItem("Settings", "settings", <SettingOutlined />),
 ];
 
