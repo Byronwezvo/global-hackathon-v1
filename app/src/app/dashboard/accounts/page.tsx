@@ -1,10 +1,8 @@
-// app/dashboard/accounts/page.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
 import { Card, Table, Button, Modal, Form, Input, Select, message } from "antd";
 import { useSelector } from "react-redux";
-import { store } from "@/redux/store";
 
 const { Option } = Select;
 
@@ -22,6 +20,7 @@ const AccountsPage: React.FC = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<Account | null>(null);
 
   const userToken = useSelector((state: any) => state.auth.token);
   const [form] = Form.useForm();
@@ -47,25 +46,44 @@ const AccountsPage: React.FC = () => {
     fetchAccounts();
   }, []);
 
-  const handleCreateAccount = async (values: any) => {
+  const openEditModal = (account: Account) => {
+    setEditingAccount(account);
+    form.setFieldsValue({
+      name: account.name,
+      type: account.type,
+      description: account.description,
+      currency: account.currency,
+    });
+    setModalOpen(true);
+  };
+
+  const handleSubmit = async (values: any) => {
     try {
-      const res = await fetch("/api/accounts", {
-        method: "POST",
+      const url = editingAccount
+        ? `/api/accounts/${editingAccount.id}`
+        : "/api/accounts";
+      const method = editingAccount ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${userToken}`,
         },
         body: JSON.stringify(values),
       });
+
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to create account");
-      message.success("Account created successfully");
+      if (!res.ok) throw new Error(data.message || "Failed");
+
+      message.success(editingAccount ? "Account updated" : "Account created");
       setModalOpen(false);
       form.resetFields();
+      setEditingAccount(null);
       fetchAccounts();
     } catch (err: any) {
       console.error(err);
-      message.error(err.message || "Error creating account");
+      message.error(err.message || "Error");
     }
   };
 
@@ -91,6 +109,15 @@ const AccountsPage: React.FC = () => {
       key: "updatedAt",
       render: (date: string) => new Date(date).toLocaleString(),
     },
+    {
+      title: "Actions",
+      key: "actions",
+      render: (_: any, record: Account) => (
+        <Button size="small" onClick={() => openEditModal(record)}>
+          Edit
+        </Button>
+      ),
+    },
   ];
 
   return (
@@ -105,7 +132,14 @@ const AccountsPage: React.FC = () => {
             }}
           >
             <span>Accounts</span>
-            <Button type="primary" onClick={() => setModalOpen(true)}>
+            <Button
+              type="primary"
+              onClick={() => {
+                setEditingAccount(null);
+                form.resetFields();
+                setModalOpen(true);
+              }}
+            >
               Create Account
             </Button>
           </div>
@@ -123,7 +157,7 @@ const AccountsPage: React.FC = () => {
       </Card>
 
       <Modal
-        title="Create Account"
+        title={editingAccount ? "Edit Account" : "Create Account"}
         open={modalOpen}
         onCancel={() => setModalOpen(false)}
         footer={null}
@@ -132,7 +166,7 @@ const AccountsPage: React.FC = () => {
         <Form
           form={form}
           layout="vertical"
-          onFinish={handleCreateAccount}
+          onFinish={handleSubmit}
           requiredMark={false}
         >
           <Form.Item
@@ -143,28 +177,44 @@ const AccountsPage: React.FC = () => {
             <Input placeholder="e.g. Incomes" />
           </Form.Item>
 
-          <Form.Item
-            label="Account Type"
-            name="type"
-            rules={[{ required: true, message: "Please select account type" }]}
-          >
-            <Select placeholder="Select type">
-              <Option value="credit">Credit</Option>
-              <Option value="debit">Debit</Option>
-            </Select>
-          </Form.Item>
+          {editingAccount ? (
+            <>
+              <Form.Item label="Account Type">
+                <Input value={editingAccount.type.toUpperCase()} disabled />
+              </Form.Item>
+
+              <Form.Item label="Currency">
+                <Input value={editingAccount.currency || ""} disabled />
+              </Form.Item>
+            </>
+          ) : (
+            <>
+              <Form.Item
+                label="Account Type"
+                name="type"
+                rules={[
+                  { required: true, message: "Please select account type" },
+                ]}
+              >
+                <Select placeholder="Select type">
+                  <Option value="credit">Credit</Option>
+                  <Option value="debit">Debit</Option>
+                </Select>
+              </Form.Item>
+
+              <Form.Item label="Currency" name="currency">
+                <Input placeholder="Optional currency e.g. USD" />
+              </Form.Item>
+            </>
+          )}
 
           <Form.Item label="Description" name="description">
             <Input placeholder="Optional description" />
           </Form.Item>
 
-          <Form.Item label="Currency" name="currency">
-            <Input placeholder="Optional currency e.g. USD" />
-          </Form.Item>
-
           <Form.Item>
             <Button type="primary" htmlType="submit" block>
-              Create
+              {editingAccount ? "Update" : "Create"}
             </Button>
           </Form.Item>
         </Form>
