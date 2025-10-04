@@ -2,10 +2,17 @@ import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/authUtils";
 
+// Define the type for the context object to be consistent
+interface RouteContext {
+  params: {
+    id: string;
+  };
+}
+
 // GET a single account
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: RouteContext // ✅ Corrected type: params is { id: string }
 ) {
   try {
     const authHeader = req.headers.get("Authorization");
@@ -40,10 +47,10 @@ export async function GET(
 // PUT: update an account
 export async function PUT(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: RouteContext // ✅ Corrected type: params is { id: string }, NOT a Promise
 ) {
   try {
-    const resolvedParams = await params; // ✅ await first
+    // const resolvedParams = await params; // ❌ REMOVE this line. params is no longer a Promise.
     const authHeader = req.headers.get("Authorization");
     if (!authHeader)
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
@@ -60,7 +67,7 @@ export async function PUT(
       dataToUpdate.description = body.description;
 
     const updatedAccount = await prisma.accounts.updateMany({
-      where: { id: resolvedParams.id, userId: user.userId },
+      where: { id: params.id, userId: user.userId }, // Use params.id directly
       data: dataToUpdate,
     });
 

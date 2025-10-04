@@ -2,12 +2,19 @@ import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/authUtils";
 
+// Define the correct synchronous type for the context object
+interface RouteContext {
+  params: {
+    id: string;
+  };
+}
+
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> } // ✅ params is now a Promise
+  { params }: RouteContext // ✅ Corrected type: params is { id: string }
 ) {
   try {
-    const { id } = await params; // ✅ await first
+    const { id } = params; // ✅ Access id directly, no await needed
     const authHeader = req.headers.get("Authorization");
     if (!authHeader)
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
@@ -32,8 +39,10 @@ export async function GET(
     return NextResponse.json(transaction);
   } catch (err) {
     console.error(err);
+    // Ensure error is converted to a string or serializable format for NextResponse
+    const errorMessage = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
-      { message: "Error fetching transaction", error: err },
+      { message: "Error fetching transaction", error: errorMessage },
       { status: 500 }
     );
   }
@@ -41,10 +50,10 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> } // ✅ params is now a Promise
+  { params }: RouteContext // ✅ Corrected type: params is { id: string }
 ) {
   try {
-    const { id } = await params; // ✅ await first
+    const { id } = params; // ✅ Access id directly, no await needed
     const authHeader = req.headers.get("Authorization");
     if (!authHeader)
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
@@ -97,8 +106,10 @@ export async function PUT(
     });
   } catch (err) {
     console.error(err);
+    // Ensure error is converted to a string or serializable format for NextResponse
+    const errorMessage = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
-      { message: "Error updating transaction", error: err },
+      { message: "Error updating transaction", error: errorMessage },
       { status: 500 }
     );
   }
