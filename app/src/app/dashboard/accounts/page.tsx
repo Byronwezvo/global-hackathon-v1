@@ -25,6 +25,8 @@ const AccountsPage: React.FC = () => {
   const userToken = useSelector((state: any) => state.auth.token);
   const [form] = Form.useForm();
 
+  const [messageApi, contextHolder] = message.useMessage();
+
   const fetchAccounts = async () => {
     setLoading(true);
     try {
@@ -36,7 +38,7 @@ const AccountsPage: React.FC = () => {
       setAccounts(data.accounts);
     } catch (err: any) {
       console.error(err);
-      message.error(err.message || "Error fetching accounts");
+      messageApi.error(err.message || "Error fetching accounts");
     } finally {
       setLoading(false);
     }
@@ -76,14 +78,16 @@ const AccountsPage: React.FC = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed");
 
-      message.success(editingAccount ? "Account updated" : "Account created");
+      messageApi.success(
+        editingAccount ? "Account updated" : "Account created"
+      );
       setModalOpen(false);
       form.resetFields();
       setEditingAccount(null);
       fetchAccounts();
     } catch (err: any) {
       console.error(err);
-      message.error(err.message || "Error");
+      messageApi.error(err.message || "Error");
     }
   };
 
@@ -122,6 +126,7 @@ const AccountsPage: React.FC = () => {
 
   return (
     <div>
+      {contextHolder}
       <Card
         title={
           <div
