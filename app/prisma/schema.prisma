@@ -19,12 +19,45 @@ enum Role {
   ADMIN
 }
 
+enum AccountType {
+  credit
+  debit
+}
+
 model Users {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   name      String
-  email     String   @unique
+  email     String    @unique
   password  String
-  role      Role     @default(USER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  role      Role      @default(USER)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  accounts  Account[]
+}
+
+model Account {
+  id           String        @id @default(uuid())
+  userId       String
+  name         String        @unique
+  type         AccountType
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  transactions Transaction[]
+
+  user Users @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model Transaction {
+  id          String      @id @default(uuid())
+  accountId   String
+  amount      Float
+  type        AccountType
+  description String?
+  createdAt   DateTime    @default(now())
+
+  account Account @relation(fields: [accountId], references: [id])
+
+  @@index([accountId])
 }

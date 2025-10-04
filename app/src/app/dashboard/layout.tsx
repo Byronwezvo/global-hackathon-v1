@@ -4,13 +4,13 @@
 import React, { useState } from "react";
 import {
   DesktopOutlined,
-  FileOutlined,
   PieChartOutlined,
-  TeamOutlined,
-  UserOutlined,
+  BankOutlined,
+  SettingOutlined,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
-import { Breadcrumb, Layout, Menu, theme } from "antd";
+import { Layout, Menu, theme } from "antd";
+import { useRouter } from "next/navigation";
 
 const { Header, Content, Footer, Sider } = Layout;
 
@@ -26,18 +26,12 @@ function getItem(
 }
 
 const items: MenuItem[] = [
-  getItem("Option 1", "1", <PieChartOutlined />),
-  getItem("Option 2", "2", <DesktopOutlined />),
-  getItem("User", "sub1", <UserOutlined />, [
-    getItem("Tom", "3"),
-    getItem("Bill", "4"),
-    getItem("Alex", "5"),
+  getItem("Dashboard", "dashboard", <PieChartOutlined />),
+  getItem("Accounts", "accounts", <BankOutlined />, [
+    getItem("New Account", "dashboard/accounts/new-account"),
+    getItem("Manage Accounts", "dashboard/accounts/manage-accounts"),
   ]),
-  getItem("Team", "sub2", <TeamOutlined />, [
-    getItem("Team 1", "6"),
-    getItem("Team 2", "8"),
-  ]),
-  getItem("Files", "9", <FileOutlined />),
+  getItem("Settings", "settings", <SettingOutlined />),
 ];
 
 interface DashboardLayoutProps {
@@ -45,14 +39,16 @@ interface DashboardLayoutProps {
   breadcrumbItems?: { title: string }[];
 }
 
-const DashboardLayout: React.FC<DashboardLayoutProps> = ({
-  children,
-  breadcrumbItems = [{ title: "Dashboard" }],
-}) => {
+const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
+  const router = useRouter();
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
+
+  const onMenuClick: MenuProps["onClick"] = ({ key }) => {
+    router.push(`/${key}`);
+  };
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
@@ -82,17 +78,18 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         </div>
 
         <Menu
-          style={{ background: "#fff", color: "#000" }} // white background, black text
-          defaultSelectedKeys={["1"]}
+          style={{ background: "#fff", color: "#000" }}
+          defaultSelectedKeys={["dashboard"]}
           mode="inline"
           items={items}
+          onClick={onMenuClick}
         />
       </Sider>
 
       <Layout>
         <Header style={{ padding: 0, background: colorBgContainer }} />
         <Content style={{ margin: "0 16px" }}>
-          <Breadcrumb style={{ margin: "16px 0" }} items={breadcrumbItems} />
+          <div style={{ margin: "16px 0" }} />
           <div
             style={{
               padding: 24,
