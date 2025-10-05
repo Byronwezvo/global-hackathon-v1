@@ -6,12 +6,14 @@ import {
   DesktopOutlined,
   PieChartOutlined,
   BankOutlined,
-  SettingOutlined,
+  LogoutOutlined,
   MoneyCollectOutlined,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import { Layout, Menu, theme } from "antd";
 import { useRouter } from "next/navigation";
+import { useDispatch } from "react-redux";
+import { logout } from "@/redux/reducers/auth";
 
 const { Header, Content, Footer, Sider } = Layout;
 
@@ -34,7 +36,7 @@ const items: MenuItem[] = [
     getItem("Portfolio", "dashboard/investments/portfolio"),
     getItem("Assets", "dashboard/investments/assets"),
   ]),
-  getItem("Settings", "settings", <SettingOutlined />),
+  getItem("Logout", "logout", <LogoutOutlined />),
 ];
 
 interface DashboardLayoutProps {
@@ -44,12 +46,18 @@ interface DashboardLayoutProps {
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
   const router = useRouter();
+  const dispatch = useDispatch();
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
 
   const onMenuClick: MenuProps["onClick"] = ({ key }) => {
-    router.push(`/${key}`);
+    if (key === "logout") {
+      dispatch(logout());
+      router.push("/");
+    } else {
+      router.push(`/${key}`);
+    }
   };
 
   return (
@@ -104,7 +112,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
           style={{
             padding: "0 24px",
             background: colorBgContainer,
-            position: "fixed",
+            position: "sticky",
             top: 0,
             zIndex: 10,
             width: "100%",
@@ -115,7 +123,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         </Header>
         <Content
           style={{
-            margin: "6em 1em 3em 1em",
+            margin: "24px 16px 0",
             overflow: "auto", // Make content scrollable
           }}
         >
