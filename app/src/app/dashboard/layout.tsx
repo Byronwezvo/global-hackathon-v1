@@ -30,6 +30,12 @@ const items: MenuItem[] = [
   getItem("Dashboard", "dashboard", <PieChartOutlined />),
   getItem("Transactions", "dashboard/transactions", <MoneyCollectOutlined />),
   getItem("Accounts", "dashboard/accounts", <BankOutlined />),
+  getItem("Investments", "dashboard/investments", <DesktopOutlined />, [
+    getItem("Overview", "dashboard/investments/overview"),
+    getItem("Portfolio", "dashboard/investments/portfolio"),
+    getItem("Assets", "dashboard/investments/assets"),
+    getItem("Performance", "dashboard/investments/performance"),
+  ]),
   getItem("Settings", "settings", <SettingOutlined />),
 ];
 

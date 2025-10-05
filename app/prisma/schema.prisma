@@ -35,6 +35,10 @@ model Users {
   accounts  Accounts[]
 
   Transaction Transaction[]
+
+  InvestmentAccount InvestmentAccount[]
+
+  Investment Investment[]
 }
 
 model Accounts {
@@ -72,4 +76,40 @@ model Transaction {
   @@index([accountId])
   @@index([userId])
   @@index([accountId, userId])
+}
+
+model InvestmentAccount {
+  id          String       @id @default(uuid())
+  userId      String
+  name        String
+  description String?
+  currency    String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  investments Investment[]
+
+  user Users @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model Investment {
+  id                  String   @id @default(uuid())
+  investmentAccountId String
+  userId              String // The owner of the investment
+  amount              Float
+  assetType           String // e.g., "Stock", "Bond", "Crypto"
+  assetName           String // e.g., "AAPL", "US Treasury"
+  description         String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  status              String? // Optional status field (e.g., "active", "closed")
+  reference           String? // Optional reference number for external systems
+
+  investmentAccount InvestmentAccount @relation(fields: [investmentAccountId], references: [id])
+  user              Users             @relation(fields: [userId], references: [id])
+
+  @@index([investmentAccountId])
+  @@index([userId])
+  @@index([investmentAccountId, userId])
 }
