@@ -15,11 +15,13 @@ import {
   Col,
   InputNumber,
   Tag,
+  Space,
 } from "antd";
 import { ArrowUpOutlined, ArrowDownOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/redux/store";
 import { investmentOptions } from "@/lib/investmentOptions";
+import ReactMarkdown from "react-markdown";
 
 const { Option } = Select;
 
@@ -68,6 +70,9 @@ const AssetsPage: React.FC = () => {
   const [pricesLoading, setPricesLoading] = useState<{ [key: string]: boolean }>(
     {}
   );
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
   const userToken = useSelector((state: RootState) => state.auth.token);
@@ -193,6 +198,53 @@ const AssetsPage: React.FC = () => {
     }
   };
 
+  const handleAiAnalysis = async () => {
+    setAiLoading(true);
+    setAiModalOpen(true);
+    setAiAnalysis("");
+
+    try {
+      if (investments.length === 0) {
+        throw new Error("No investments to analyze.");
+      }
+
+      const investmentsToAnalyze = investments.map((inv) => ({
+        assetName: inv.assetName,
+        assetType: inv.assetType,
+        quantity: inv.amount,
+        currentValue:
+          (assetPrices[inv.assetName]?.currentPrice || 0) * inv.amount,
+      }));
+
+      const aiRes = await fetch("/api/ai/investment-analysis", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${userToken}`,
+        },
+        body: JSON.stringify({
+          investments: investmentsToAnalyze,
+          userQuestion:
+            "Analyze my portfolio's diversification, identify risks, and provide 2-3 actionable suggestions for improvement.",
+        }),
+      });
+
+      const aiData = await aiRes.json();
+      if (!aiRes.ok)
+        throw new Error(aiData.message || "AI Analysis Failed");
+
+      setAiAnalysis(
+        aiData.analysisText || "Analysis completed, but no text was returned."
+      );
+      messageApi.success("AI Analysis complete!");
+    } catch (err: any) {
+      setAiAnalysis(`Error during analysis: ${err.message}`);
+      messageApi.error(err.message || "Error running AI analysis");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const handleFormValuesChange = (changedValues: any) => {
     if (changedValues.assetType) {
       setSelectedAssetType(changedValues.assetType);
@@ -314,9 +366,14 @@ const AssetsPage: React.FC = () => {
           </span>
         </Col>
         <Col>
-          <Button type="primary" onClick={() => handleOpenModal()}>
-            Create Investment
-          </Button>
+          <Space>
+            <Button onClick={handleAiAnalysis} loading={aiLoading}>
+              AI Investment Advisor 🧠
+            </Button>
+            <Button type="primary" onClick={() => handleOpenModal()}>
+              Create Investment
+            </Button>
+          </Space>
         </Col>
       </Row>
     </div>
@@ -457,6 +514,135 @@ const AssetsPage: React.FC = () => {
             </Button>
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        open={aiModalOpen}
+        title={null}
+        onCancel={() => setAiModalOpen(false)}
+        footer={null}
+        width={720}
+        centered
+      >
+        {aiLoading ? (
+          <div
+            style={{
+              height: 360,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexDirection: "column",
+              gap: 12,
+            }}
+          >
+            <span style={{ fontSize: 40 }}>✨</span>
+            <p style={{ color: "#888", fontSize: 15 }}>Gemini is thinking…</p>
+          </div>
+        ) : (
+          <div
+            style={{
+              padding: "24px 32px",
+              maxHeight: "50vh",
+              overflowY: "auto",
+              background: "#fff",
+            }}
+            className="hide-scrollbar"
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 30,
+                borderBottom: "1px solid #f0f0f0",
+                paddingBottom: 30,
+              }}
+            >
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: 18,
+                  fontWeight: 600,
+                }}
+              >
+                AI Investment Advisor 🧸
+              </h2>
+            </div>
+            <ReactMarkdown
+              components={{
+                h1: ({ children }) => (
+                  <h3 style={{ fontSize: 18, margin: "20px 0 8px" }}>
+                    {children}
+                  </h3>
+                ),
+                h2: ({ children }) => (
+                  <h4
+                    style={{
+                      fontSize: 16,
+                      margin: "16px 0 8px",
+                      color: "#52c41a",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {children}
+                  </h4>
+                ),
+                p: ({ children }) => (
+                  <p
+                    style={{
+                      margin: "0 0 12px",
+                      lineHeight: 1.7,
+                      color: "#444",
+                      fontSize: 14.5,
+                    }}
+                  >
+                    {children}
+                  </p>
+                ),
+                li: ({ children }) => (
+                  <li
+                    style={{
+                      marginBottom: 6,
+                      lineHeight: 1.7,
+                      color: "#444",
+                      fontSize: 14.5,
+                    }}
+                  >
+                    {children}
+                  </li>
+                ),
+                ul: ({ children }) => (
+                  <ul style={{ paddingLeft: 20, margin: "0 0 16px" }}>
+                    {children}
+                  </ul>
+                ),
+                hr: () => (
+                  <hr
+                    style={{
+                      border: "none",
+                      borderTop: "1px solid #f0f0f0",
+                      margin: "20px 0",
+                    }}
+                  />
+                ),
+              }}
+            >
+              {aiAnalysis}
+            </ReactMarkdown>
+            <div
+              style={{
+                textAlign: "center",
+                marginTop: 24,
+                borderTop: "1px solid #f0f0f0",
+                paddingTop: 16,
+              }}
+            >
+              <Button type="primary" onClick={() => setAiModalOpen(false)}>
+                Got it 🎉
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );
