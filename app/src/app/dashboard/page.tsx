@@ -1,122 +1,92 @@
 "use client";
 
-import * as React from "react";
+import React, { useEffect, useState } from "react";
+import { Card, Col, Row, Statistic, Table, List, Spin, message } from "antd";
+import { BankOutlined, RiseOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
-import { Card, Row, Col, Table, Spin } from "antd";
-import {
-  DollarCircleOutlined,
-  CreditCardOutlined,
-  CalendarOutlined,
-  TeamOutlined,
-} from "@ant-design/icons";
+import type { RootState } from "@/redux/store";
 
-interface Tile {
-  title: string;
-  value: string;
-  icon: React.ReactNode;
-}
-
-interface Transaction {
+interface AccountBalance {
   id: string;
-  type: string;
-  amount: string;
-  date: string;
+  name: string;
+  balance: number;
+  type: "credit" | "debit";
 }
 
-const Dashboard: React.FC = () => {
-  const token = useSelector((state: any) => state.auth.token);
+interface RecentTransaction {
+  id: string;
+  description: string;
+  amount: number;
+  createdAt: string;
+  accountName: string;
+}
 
-  const [loading, setLoading] = React.useState(true);
-  const [totalBalance, setTotalBalance] = React.useState("$0");
-  const [debitBalance, setDebitBalance] = React.useState("$0");
-  const [activeAccounts, setActiveAccounts] = React.useState(0);
-  const [creditPeriod, setCreditPeriod] = React.useState("30 Days");
-  const [recentTransactions, setRecentTransactions] = React.useState<
-    Transaction[]
-  >([]);
+interface InvestmentDetail {
+  assetType: string;
+  currentValue: number;
+}
 
-  React.useEffect(() => {
-    const fetchData = async () => {
-      if (!token) return;
+const DashboardPage: React.FC = () => {
+  const [summary, setSummary] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [messageApi, contextHolder] = message.useMessage();
+  const userToken = useSelector((state: RootState) => state.auth.token);
 
-      setLoading(true);
-      try {
-        const headers = { Authorization: `Bearer ${token}` };
+  useEffect(() => {
+    if (userToken) {
+      const fetchSummary = async () => {
+        setLoading(true);
+        try {
+          const res = await fetch("/api/dashboard/summary", {
+            headers: { Authorization: `Bearer ${userToken}` },
+          });
+          const data = await res.json();
+          if (!res.ok)
+            throw new Error(data.message || "Failed to fetch summary");
+          setSummary(data);
+        } catch (err: any) {
+          messageApi.error(err.message || "Error fetching dashboard data.");
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchSummary();
+    }
+  }, [userToken, messageApi]);
 
-        const accountsRes = await fetch("/api/accounts", { headers });
-        const accountsData = await accountsRes.json();
-
-        const transactionsRes = await fetch("/api/transactions", { headers });
-        const transactionsData = await transactionsRes.json();
-
-        // Safely calculate totals
-        const totalBal = accountsData.reduce(
-          (acc: number, accItem: any) => acc + (Number(accItem.balance) || 0),
-          0
-        );
-        const debitBal = accountsData.reduce(
-          (acc: number, accItem: any) => acc + (Number(accItem.debit) || 0),
-          0
-        );
-
-        setTotalBalance(`$${totalBal}`);
-        setDebitBalance(`$${debitBal}`);
-        setActiveAccounts(accountsData.length);
-
-        // Safely map transactions
-        setRecentTransactions(
-          transactionsData.slice(0, 5).map((tx: any) => ({
-            id: tx.id || tx._id || "N/A",
-            type: tx.type || "N/A",
-            amount: tx.amount ? `$${tx.amount}` : "$0",
-            date: tx.createdAt
-              ? new Date(tx.createdAt).toLocaleDateString()
-              : "N/A",
-          }))
-        );
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [token]);
-
-  const tiles: Tile[] = [
+  const recentTransactionsColumns = [
     {
-      title: "Total Balance",
-      value: totalBalance,
-      icon: (
-        <DollarCircleOutlined style={{ fontSize: "2rem", color: "#1890ff" }} />
-      ),
+      title: "Transaction",
+      dataIndex: "description",
+      key: "description",
+      render: (text: string) => text || "N/A",
     },
     {
-      title: "Debit Balance",
-      value: debitBalance,
-      icon: (
-        <CreditCardOutlined style={{ fontSize: "2rem", color: "#fa541c" }} />
-      ),
+      title: "Account",
+      dataIndex: "accountName",
+      key: "accountName",
     },
     {
-      title: "Credit Period",
-      value: creditPeriod,
-      icon: <CalendarOutlined style={{ fontSize: "2rem", color: "#52c41a" }} />,
+      title: "Date",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      render: (date: string) => new Date(date).toLocaleDateString(),
     },
     {
-      title: "Active Accounts",
-      value: `${activeAccounts}`,
-      icon: <TeamOutlined style={{ fontSize: "2rem", color: "#722ed1" }} />,
+      title: "Amount",
+      dataIndex: "amount",
+      key: "amount",
+      render: (amount: number) => `${amount.toLocaleString()}`,
     },
   ];
 
-  const columns = [
-    { title: "ID", dataIndex: "id", key: "id" },
-    { title: "Type", dataIndex: "type", key: "type" },
-    { title: "Amount", dataIndex: "amount", key: "amount" },
-    { title: "Date", dataIndex: "date", key: "date" },
-  ];
+  const investmentAllocation = summary?.investmentDetails?.reduce(
+    (acc: any, curr: InvestmentDetail) => {
+      acc[curr.assetType] = (acc[curr.assetType] || 0) + curr.currentValue;
+      return acc;
+    },
+    {}
+  );
 
   if (loading) {
     return (
@@ -125,7 +95,7 @@ const Dashboard: React.FC = () => {
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
-          height: "70vh",
+          height: "60vh",
         }}
       >
         <Spin size="large" />
@@ -135,46 +105,95 @@ const Dashboard: React.FC = () => {
 
   return (
     <div>
-      <Row gutter={[16, 16]}>
-        {tiles.map((tile) => (
-          <Col xs={24} sm={12} md={6} key={tile.title}>
-            <Card
-              hoverable
-              style={{
-                cursor: "pointer",
-                border: "1px solid #f0f0f0",
-                boxShadow: "none",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  marginBottom: "1rem",
-                }}
-              >
-                <div style={{ marginRight: "1rem" }}>{tile.icon}</div>
-                <h3 style={{ margin: 0, fontWeight: 600 }}>{tile.title}</h3>
-              </div>
-              <p style={{ fontSize: "1.5rem", fontWeight: "bold", margin: 0 }}>
-                {tile.value}
-              </p>
-            </Card>
-          </Col>
-        ))}
-      </Row>
+      {contextHolder}
+      <Row gutter={[24, 24]}>
+        <Col xs={24} sm={12}>
+          <Card>
+            <Statistic
+              title="Total Bank Balance"
+              value={summary?.totalBankBalance}
+              precision={2}
+              prefix={
+                <BankOutlined style={{ color: "black", marginRight: 8 }} />
+              }
+              valueStyle={{ color: "#3f8600" }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12}>
+          <Card>
+            <Statistic
+              title="Total Investment Value"
+              value={summary?.totalInvestmentValue}
+              precision={2}
+              prefix={
+                <RiseOutlined style={{ color: "black", marginRight: 8 }} />
+              }
+              valueStyle={{ color: "#3f8600" }}
+            />
+          </Card>
+        </Col>
 
-      <div style={{ marginTop: "2rem" }}>
-        <h3>Recent Transactions</h3>
-        <Table
-          columns={columns}
-          dataSource={recentTransactions}
-          rowKey="id"
-          pagination={false}
-        />
-      </div>
+        <Col xs={24} md={12}>
+          <Card
+            title="Account Balances"
+            bodyStyle={{ height: 300, overflowY: "auto" }}
+            className="hide-scrollbar"
+          >
+            <List
+              dataSource={summary?.accountBalances || []}
+              renderItem={(item: AccountBalance) => (
+                <List.Item>
+                  <List.Item.Meta title={item.name} />
+                  <div>{`${Math.abs(item.balance).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })} ${item.type === "debit" ? "DR" : "CR"}`}</div>
+                </List.Item>
+              )}
+            />
+          </Card>
+        </Col>
+
+        <Col xs={24} md={12}>
+          <Card
+            title="Investment Allocation"
+            bodyStyle={{ height: 300, overflowY: "auto" }}
+            className="hide-scrollbar"
+          >
+            <List
+              dataSource={
+                investmentAllocation ? Object.keys(investmentAllocation) : []
+              }
+              renderItem={(key: string) => (
+                <List.Item>
+                  <List.Item.Meta title={key} />
+                  <div>
+                    {`${investmentAllocation[key].toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}`}
+                  </div>
+                </List.Item>
+              )}
+            />
+          </Card>
+        </Col>
+
+        <Col span={24}>
+          <Card title="Recent Transactions">
+            <Table
+              dataSource={summary?.recentTransactions || []}
+              columns={recentTransactionsColumns}
+              pagination={false}
+              rowKey="id"
+              size="small"
+            />
+          </Card>
+        </Col>
+      </Row>
     </div>
   );
 };
 
-export default Dashboard;
+export default DashboardPage;

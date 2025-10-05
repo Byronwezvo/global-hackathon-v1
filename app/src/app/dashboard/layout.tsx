@@ -39,7 +39,6 @@ const items: MenuItem[] = [
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  breadcrumbItems?: { title: string }[];
 }
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
@@ -59,9 +58,17 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         collapsible
         collapsed={collapsed}
         onCollapse={setCollapsed}
-        style={{ background: "#fff" }}
+        style={{
+          overflow: "auto",
+          height: "100vh",
+          position: "fixed",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          background: "#fff",
+          borderRight: "1px solid #f0f0f0",
+        }}
       >
-        {/* Circle logo placeholder with padding top */}
         <div
           style={{
             display: "flex",
@@ -79,33 +86,65 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             }}
           />
         </div>
-
         <Menu
-          style={{ background: "#fff", color: "#000" }}
+          style={{ background: "#fff", color: "#000", borderRight: 0 }}
           defaultSelectedKeys={["dashboard"]}
           mode="inline"
           items={items}
           onClick={onMenuClick}
         />
       </Sider>
-
-      <Layout>
-        <Header style={{ padding: 0, background: colorBgContainer }} />
-        <Content style={{ margin: "0 16px" }}>
-          <div style={{ margin: "16px 0" }} />
+      <Layout
+        style={{
+          marginLeft: collapsed ? 80 : 200,
+          transition: "margin-left 0.2s",
+        }}
+      >
+        <Header
+          style={{
+            padding: "0 24px",
+            background: colorBgContainer,
+            position: "fixed",
+            top: 0,
+            zIndex: 10,
+            width: "100%",
+            borderBottom: "1px solid #f0f0f0",
+          }}
+        >
+          {/* You can add header content here if needed */}
+        </Header>
+        <Content
+          style={{
+            margin: "7em 1em 3em 1em",
+            overflow: "auto", // Make content scrollable
+          }}
+        >
           <div
             style={{
               padding: 24,
-              minHeight: 360,
               background: colorBgContainer,
               borderRadius: borderRadiusLG,
+              minHeight: "calc(100vh - 180px)", // Adjust based on header/footer/margin height
             }}
           >
             {children}
           </div>
         </Content>
-        <Footer style={{ textAlign: "center" }}>
-          Ant Design ©{new Date().getFullYear()} Created by Ant UED
+        <Footer
+          style={{
+            textAlign: "center",
+            background: "#fff",
+            borderTop: "1px solid #f0f0f0",
+          }}
+        >
+          ©{new Date().getFullYear()} made with love by{" "}
+          <a
+            href="https://github.com/Byronwezvo"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Byron Wezvo
+          </a>
         </Footer>
       </Layout>
     </Layout>

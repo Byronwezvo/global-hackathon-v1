@@ -434,7 +434,7 @@ const AssetsPage: React.FC = () => {
             rowKey="id"
             size="small"
             pagination={{ pageSize: 10 }}
-            style={{ border: 0 }}
+            style={{ border: 0, minHeight: '400px' }}
           />
         )}
       </Card>

@@ -470,7 +470,7 @@ const TransactionsPage: React.FC = () => {
             total,
             onChange: (p) => setPage(p),
           }}
-          style={{ border: 0 }}
+          style={{ border: 0, minHeight: '400px' }}
         />
       </Card>
 
