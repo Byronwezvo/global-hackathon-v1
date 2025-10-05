@@ -108,6 +108,33 @@ const AssetsPage: React.FC = () => {
     }
   }, [userToken, messageApi]);
 
+  const fetchPriceWithRetry = async (
+    assetName: string,
+    retries = 3,
+    delay = 1500
+  ) => {
+    for (let i = 0; i < retries; i++) {
+      try {
+        const res = await fetch(`/api/investments/price?assetName=${assetName}`);
+        if (!res.ok) {
+          throw new Error(`Attempt ${i + 1} failed`);
+        }
+        const data = await res.json();
+        if (data.currentPrice !== undefined) {
+          setAssetPrices((prev) => ({ ...prev, [assetName]: data }));
+          return; // Success
+        }
+      } catch (error) {
+        console.warn(`Fetching price for ${assetName} failed. Retrying...`, error);
+        if (i < retries - 1) {
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        } else {
+          console.error(`All retries failed for ${assetName}`);
+        }
+      }
+    }
+  };
+
   useEffect(() => {
     if (userToken) {
       fetchInvestments();
@@ -122,19 +149,9 @@ const AssetsPage: React.FC = () => {
       ];
       uniqueAssetNames.forEach((assetName) => {
         setPricesLoading((prev) => ({ ...prev, [assetName]: true }));
-        fetch(`/api/investments/price?assetName=${assetName}`)
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.currentPrice !== undefined) {
-              setAssetPrices((prev) => ({ ...prev, [assetName]: data }));
-            }
-          })
-          .catch((err) =>
-            console.error(`Failed to fetch price for ${assetName}`, err)
-          )
-          .finally(() => {
-            setPricesLoading((prev) => ({ ...prev, [assetName]: false }));
-          });
+        fetchPriceWithRetry(assetName).finally(() => {
+          setPricesLoading((prev) => ({ ...prev, [assetName]: false }));
+        });
       });
     }
   }, [investments]);
@@ -280,6 +297,7 @@ const AssetsPage: React.FC = () => {
       dataIndex: "assetName",
       key: "previousClose",
       render: (assetName: string) => {
+        if (pricesLoading[assetName]) return <Spin size="small" />;
         const priceData = assetPrices[assetName];
         return priceData
           ? `$${priceData.previousClose.toLocaleString()}`
@@ -302,6 +320,7 @@ const AssetsPage: React.FC = () => {
       title: "Current Value",
       key: "currentValue",
       render: (_: any, record: Investment) => {
+        if (pricesLoading[record.assetName]) return <Spin size="small" />;
         const priceData = assetPrices[record.assetName];
         if (!priceData) return "N/A";
         const value = priceData.currentPrice * record.amount;
@@ -315,6 +334,7 @@ const AssetsPage: React.FC = () => {
       title: "Direction",
       key: "direction",
       render: (_: any, record: Investment) => {
+        if (pricesLoading[record.assetName]) return <Spin size="small" />;
         const priceData = assetPrices[record.assetName];
         if (!priceData) return "—";
 
