@@ -1,10 +1,28 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Card, Col, Row, Statistic, Table, List, Spin, message } from "antd";
-import { BankOutlined, RiseOutlined } from "@ant-design/icons";
+import {
+  Card,
+  Col,
+  Row,
+  Statistic,
+  Table,
+  List,
+  Spin,
+  message,
+  Typography,
+  Space,
+} from "antd";
+import {
+  BankOutlined,
+  RiseOutlined,
+  ArrowUpOutlined,
+  ArrowDownOutlined,
+} from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/redux/store";
+
+const { Text } = Typography;
 
 interface AccountBalance {
   id: string;
@@ -22,8 +40,11 @@ interface RecentTransaction {
 }
 
 interface InvestmentDetail {
-  assetType: string;
+  id: string;
+  assetName: string;
+  amount: number; // Quantity
   currentValue: number;
+  assetType: string;
 }
 
 const DashboardPage: React.FC = () => {
@@ -80,6 +101,35 @@ const DashboardPage: React.FC = () => {
     },
   ];
 
+  const investmentColumns = [
+    {
+      title: "Asset",
+      dataIndex: "assetName",
+      key: "assetName",
+    },
+    {
+      title: "Type",
+      dataIndex: "assetType",
+      key: "assetType",
+    },
+    {
+      title: "Quantity",
+      dataIndex: "amount",
+      key: "amount",
+      render: (amount: number) => amount.toLocaleString(),
+    },
+    {
+      title: "Current Value",
+      dataIndex: "currentValue",
+      key: "currentValue",
+      render: (value: number) =>
+        `${value.toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`,
+    },
+  ];
+
   const investmentAllocation = summary?.investmentDetails?.reduce(
     (acc: any, curr: InvestmentDetail) => {
       acc[curr.assetType] = (acc[curr.assetType] || 0) + curr.currentValue;
@@ -103,34 +153,79 @@ const DashboardPage: React.FC = () => {
     );
   }
 
+  const { topGainer, topLoser, topAccountGainer, topAccountLoser } = summary || {};
+
   return (
     <div>
       {contextHolder}
       <Row gutter={[24, 24]}>
         <Col xs={24} sm={12}>
           <Card>
-            <Statistic
-              title="Total Bank Balance"
-              value={summary?.totalBankBalance}
-              precision={2}
-              prefix={
-                <BankOutlined style={{ color: "black", marginRight: 8 }} />
-              }
-              valueStyle={{ color: "#3f8600" }}
-            />
+            <Row align="top" justify="space-between">
+              <Col flex="auto">
+                <Statistic
+                  title="Total Bank Balance"
+                  value={summary?.totalBankBalance}
+                  precision={2}
+                  prefix={
+                    <BankOutlined style={{ color: "black", marginRight: 8 }} />
+                  }
+                  valueStyle={{
+                    color:
+                      summary?.totalBankBalance >= 0 ? "#3f8600" : "#cf1322",
+                  }}
+                />
+              </Col>
+              <Col flex="none">
+                <Space direction="vertical" align="end" size={2}>
+                  {topAccountGainer && (
+                    <Text style={{ fontSize: 12, color: "green" }}>
+                      <ArrowUpOutlined /> {topAccountGainer.name}{" "}
+                      {`+${topAccountGainer.change.toFixed(2)}`}
+                    </Text>
+                  )}
+                  {topAccountLoser && (
+                    <Text style={{ fontSize: 12, color: "red" }}>
+                      <ArrowDownOutlined /> {topAccountLoser.name}{" "}
+                      {`-${topAccountLoser.change.toFixed(2)}`}
+                    </Text>
+                  )}
+                </Space>
+              </Col>
+            </Row>
           </Card>
         </Col>
         <Col xs={24} sm={12}>
           <Card>
-            <Statistic
-              title="Total Investment Value"
-              value={summary?.totalInvestmentValue}
-              precision={2}
-              prefix={
-                <RiseOutlined style={{ color: "black", marginRight: 8 }} />
-              }
-              valueStyle={{ color: "#3f8600" }}
-            />
+            <Row align="top" justify="space-between">
+              <Col flex="auto">
+                <Statistic
+                  title="Total Investment Value"
+                  value={summary?.totalInvestmentValue}
+                  precision={2}
+                  prefix={
+                    <RiseOutlined style={{ color: "black", marginRight: 8 }} />
+                  }
+                  valueStyle={{ color: "#3f8600" }}
+                />
+              </Col>
+              <Col flex="none">
+                <Space direction="vertical" align="end" size={2}>
+                  {topGainer && topGainer.changePercent > 0 && (
+                    <Text style={{ fontSize: 12, color: "green" }}>
+                      <ArrowUpOutlined /> {topGainer.assetName}{" "}
+                      {topGainer.changePercent.toFixed(2)}%
+                    </Text>
+                  )}
+                  {topLoser && topLoser.changePercent < 0 && (
+                    <Text style={{ fontSize: 12, color: "red" }}>
+                      <ArrowDownOutlined /> {topLoser.assetName}{" "}
+                      {topLoser.changePercent.toFixed(2)}%
+                    </Text>
+                  )}
+                </Space>
+              </Col>
+            </Row>
           </Card>
         </Col>
 
@@ -145,10 +240,16 @@ const DashboardPage: React.FC = () => {
               renderItem={(item: AccountBalance) => (
                 <List.Item>
                   <List.Item.Meta title={item.name} />
-                  <div>{`${Math.abs(item.balance).toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })} ${item.type === "debit" ? "DR" : "CR"}`}</div>
+                  <div
+                    style={{
+                      color: item.type === "credit" ? "green" : "red",
+                    }}
+                  >
+                    {`${Math.abs(item.balance).toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}`}
+                  </div>
                 </List.Item>
               )}
             />
@@ -186,6 +287,18 @@ const DashboardPage: React.FC = () => {
               dataSource={summary?.recentTransactions || []}
               columns={recentTransactionsColumns}
               pagination={false}
+              rowKey="id"
+              size="small"
+            />
+          </Card>
+        </Col>
+
+        <Col span={24}>
+          <Card title="Current Investments">
+            <Table
+              dataSource={summary?.investmentDetails || []}
+              columns={investmentColumns}
+              pagination={{ pageSize: 5 }}
               rowKey="id"
               size="small"
             />

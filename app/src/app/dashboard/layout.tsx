@@ -115,7 +115,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         </Header>
         <Content
           style={{
-            margin: "7em 1em 3em 1em",
+            margin: "6em 1em 3em 1em",
             overflow: "auto", // Make content scrollable
           }}
         >

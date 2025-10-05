@@ -20,12 +20,16 @@ async function fetchPrice(assetName: string) {
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
       },
     });
-    if (!response.ok) return 0;
+    if (!response.ok) return { currentPrice: 0, previousClose: 0 };
     const data = await response.json();
-    return data?.chart?.result?.[0]?.meta?.regularMarketPrice || 0;
+    const meta = data?.chart?.result?.[0]?.meta;
+    return {
+      currentPrice: meta?.regularMarketPrice || 0,
+      previousClose: meta?.chartPreviousClose || 0,
+    };
   } catch (error) {
     console.error(`Failed to fetch price for ${assetName}:`, error);
-    return 0;
+    return { currentPrice: 0, previousClose: 0 };
   }
 }
 
@@ -49,43 +53,110 @@ export async function GET(req: NextRequest) {
       prisma.investment.findMany({ where: { userId } }),
     ]);
 
-    // 2. Calculate Bank Balances
-    const accountBalances = accounts.map((acc) => {
-      const balance = transactions
+    // 2. Calculate Bank Balances and Top Movers
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const accountSummaries = accounts.map((acc) => {
+      let balance = 0;
+      let recentCredits = 0;
+      let recentDebits = 0;
+
+      transactions
         .filter((t) => t.accountId === acc.id)
-        .reduce((sum, t) => {
-          if (acc.type === AccountType.debit) {
-            // For a debit account (like checking), credit increases balance, debit decreases
-            return sum + (t.type === "credit" ? t.amount : -t.amount);
-          } else {
-            // For a credit account (like a credit card), debit (spending) increases balance (debt), credit (payment) decreases
-            return sum + (t.type === "debit" ? t.amount : -t.amount);
+        .forEach((t) => {
+          const balanceAmount =
+            acc.type === AccountType.debit
+              ? t.type === "credit"
+                ? t.amount
+                : -t.amount
+              : t.type === "debit"
+              ? t.amount
+              : -t.amount;
+          balance += balanceAmount;
+
+          if (new Date(t.createdAt) > twentyFourHoursAgo) {
+            if (t.type === "credit") {
+              recentCredits += t.amount;
+            } else {
+              recentDebits += t.amount;
+            }
           }
-        }, 0);
-      return { id: acc.id, name: acc.name, balance, type: acc.type };
+        });
+
+      const netWorthImpact =
+        acc.type === AccountType.credit ? -balance : balance;
+
+      return {
+        id: acc.id,
+        name: acc.name,
+        balance,
+        type: acc.type,
+        recentCredits,
+        recentDebits,
+        netWorthImpact,
+      };
     });
 
-    // The total balance should consider the nature of the accounts
-    const totalBankBalance = accountBalances.reduce((sum, acc) => {
-      // We add balances from debit accounts and subtract balances (debt) from credit accounts
-      return sum + (acc.type === AccountType.debit ? acc.balance : -acc.balance);
-    }, 0);
+    const totalBankBalance = accountSummaries.reduce(
+      (sum, acc) => sum + acc.netWorthImpact,
+      0
+    );
 
-    // 3. Calculate Investment Value
+    let topAccountGainer = null;
+    if (accountSummaries.length > 0) {
+      const sortedByCredits = [...accountSummaries].sort(
+        (a, b) => b.recentCredits - a.recentCredits
+      );
+      if (sortedByCredits[0].recentCredits > 0) {
+        topAccountGainer = {
+          name: sortedByCredits[0].name,
+          change: sortedByCredits[0].recentCredits,
+        };
+      }
+    }
+
+    let topAccountLoser = null;
+    if (accountSummaries.length > 0) {
+      const sortedByDebits = [...accountSummaries].sort(
+        (a, b) => b.recentDebits - a.recentDebits
+      );
+      if (sortedByDebits[0].recentDebits > 0) {
+        topAccountLoser = {
+          name: sortedByDebits[0].name,
+          change: sortedByDebits[0].recentDebits,
+        };
+      }
+    }
+
+
+    // 3. Calculate Investment Value and Top Movers
     const uniqueAssetNames = [...new Set(investments.map((inv) => inv.assetName))];
     const pricePromises = uniqueAssetNames.map((name) => fetchPrice(name));
-    const prices = await Promise.all(pricePromises);
+    const pricesData = await Promise.all(pricePromises);
     const priceMap = uniqueAssetNames.reduce((acc, name, index) => {
-      acc[name] = prices[index];
+      acc[name] = pricesData[index];
       return acc;
-    }, {} as { [key: string]: number });
+    }, {} as { [key: string]: { currentPrice: number; previousClose: number } });
 
     let totalInvestmentValue = 0;
     const investmentDetails = investments.map((inv) => {
-      const currentValue = (priceMap[inv.assetName] || 0) * inv.amount;
+      const priceInfo = priceMap[inv.assetName] || { currentPrice: 0, previousClose: 0 };
+      const currentValue = priceInfo.currentPrice * inv.amount;
       totalInvestmentValue += currentValue;
-      return { ...inv, currentValue };
+      const changePercent = priceInfo.previousClose > 0
+        ? ((priceInfo.currentPrice - priceInfo.previousClose) / priceInfo.previousClose) * 100
+        : 0;
+      return { ...inv, currentValue, changePercent, currentPrice: priceInfo.currentPrice };
     });
+
+    let topGainer = null;
+    let topLoser = null;
+
+    if (investmentDetails.length > 0) {
+      const sortedByChange = [...investmentDetails].sort((a, b) => b.changePercent - a.changePercent);
+      topGainer = sortedByChange[0].changePercent > 0 ? sortedByChange[0] : null;
+      topLoser = sortedByChange[sortedByChange.length - 1].changePercent < 0 ? sortedByChange[sortedByChange.length - 1] : null;
+    }
 
     // 4. Get Recent Transactions
     const recentTransactions = await prisma.transaction.findMany({
@@ -98,9 +169,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       totalBankBalance,
       totalInvestmentValue,
-      accountBalances,
+      accountBalances: accountSummaries,
       recentTransactions: recentTransactions.map(t => ({...t, accountName: t.account.name})),
-      investmentDetails, // For allocation chart
+      investmentDetails,
+      topGainer,
+      topLoser,
+      topAccountGainer,
+      topAccountLoser,
     });
   } catch (error: any) {
     console.error("Error fetching dashboard summary:", error);
