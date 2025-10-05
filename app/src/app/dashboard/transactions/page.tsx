@@ -15,6 +15,7 @@ import {
   Checkbox,
   Row,
   Col,
+  Tag,
 } from "antd";
 import { useSelector } from "react-redux";
 import moment, { Moment } from "moment";
@@ -318,7 +319,7 @@ const TransactionsPage: React.FC = () => {
       title: "Amount",
       dataIndex: "amount",
       key: "amount",
-      render: (amount: number) => parseFloat(amount.toString()).toFixed(2),
+      render: (amount: number) => `$${parseFloat(amount.toString()).toFixed(2)}`,
     },
     {
       title: "Type",
@@ -327,7 +328,19 @@ const TransactionsPage: React.FC = () => {
       render: (type: string) => type.toUpperCase(),
     },
     { title: "Description", dataIndex: "description", key: "description" },
-    { title: "Status", dataIndex: "status", key: "status" },
+    {
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
+      render: (status: string) => {
+        if (!status) return "—";
+        let color = "default";
+        if (status === "completed") color = "green";
+        if (status === "pending") color = "orange";
+        if (status === "rejected") color = "red";
+        return <Tag color={color}>{status.toUpperCase()}</Tag>;
+      },
+    },
     { title: "Reference", dataIndex: "reference", key: "reference" },
     {
       title: "Created At",
