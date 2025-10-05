@@ -3,7 +3,7 @@ import { verifyToken } from "@/lib/authUtils";
 import { GoogleGenAI } from "@google/genai";
 
 const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY!, // make sure it's set
+  apiKey: process.env.GEMINI_API_KEY!, // make sure this is set in .env.local
 });
 
 export async function POST(req: NextRequest) {
@@ -26,46 +26,50 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-
     const prompt = `
-      You are an expert financial advisor. The user has shared their investment portfolio and asked a specific question.  
+You are an expert financial advisor 🧠💰. The user has shared their investment portfolio, including both active and closed positions.  
 
-      Please analyze the portfolio and respond in **Markdown format** with a professional yet engaging tone.  
-      Use **headings, bullet points, and emojis** to make the response clear, actionable, and visually appealing.  
+Please provide a clear, friendly, and **concise summary in Markdown format** using **headings, bullet points, and emojis**. Avoid tables. Focus on summaries for active positions, and include brief notes for closed positions.  
 
-      ---
+---
 
-      📊 **User's Portfolio:**  
-      ${JSON.stringify(investments, null, 2)}
+📊 **User's Portfolio:**  
+${JSON.stringify(investments, null, 2)}
 
-      ❓ **User's Question:**  
-      "${userQuestion}"
+❓ **User's Question:**  
+"${userQuestion}"
 
-      ---
+---
 
-      ### ✨ Response Guidelines  
-      Structure your analysis into the following sections:
+### ✨ Response Guidelines
 
-      1. **📌 Portfolio Overview**  
-        - Briefly summarize the portfolio’s composition.  
-        - Highlight the total current value.  
+1. **📌 Portfolio Snapshot (Active Positions)**  
+   - Provide the **Total Portfolio Value** (sum of all 'currentValue' for active investments).  
+   - Give a short summary of **overall performance** today (gain/loss vs previousClose).  
+   - Highlight major contributors to performance (top gainers/losers).  
 
-      2. **🌐 Diversification Analysis**  
-        - Evaluate diversification across **Stocks, Bonds, and Crypto**.  
-        - Point out any risks such as over-concentration or underexposure.  
+2. **🌐 Diversification Summary**  
+   - Summarize allocation across **Stocks, Crypto, and other asset types**.  
+   - Note any **over-concentration or underexposure**, in plain language.  
 
-      3. **💡 Actionable Suggestions**  
-        - Provide **2–3 practical, numbered tips** for improvement.  
-        - Keep them concise, realistic, and easy for the user to implement.  
+3. **💹 Closed Positions Notes**  
+   - List **closed positions briefly**, including:  
+     - Closing date  
+     - Total gain/loss achieved  
+     - Whether reinvestment in a similar asset might make sense  
 
-      ---
+4. **💡 Actionable Suggestions**  
+   - Provide **2–3 practical tips** to improve diversification, reduce risk, and optimize returns.  
+   - Include advice about possible **reinvestment strategies** based on closed positions.  
 
-      🎯 Make sure your answer is:  
-      - **Clear and easy to understand**  
-      - **Structured with headings & bullet points**  
-      - **Visually engaging using emojis**  
-      - **Directly answering the user's question**
-      `;
+---
+
+✅ Make the answer:  
+- Clear, concise, and easy to read  
+- Structured with headings, bullet points, and emojis  
+- Friendly and encouraging  
+- Highlight important numbers in **bold**
+`;
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash", // ✅ match working file
@@ -79,10 +83,7 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error("Error in AI investment analysis:", error);
     return NextResponse.json(
-      {
-        message: "Failed to generate AI analysis.",
-        error: error.message,
-      },
+      { message: "Failed to generate AI analysis.", error: error.message },
       { status: 500 }
     );
   }

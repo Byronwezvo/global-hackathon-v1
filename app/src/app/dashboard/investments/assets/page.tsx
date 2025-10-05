@@ -225,13 +225,21 @@ const AssetsPage: React.FC = () => {
         throw new Error("No investments to analyze.");
       }
 
-      const investmentsToAnalyze = investments.map((inv) => ({
-        assetName: inv.assetName,
-        assetType: inv.assetType,
-        quantity: inv.amount,
-        currentValue:
-          (assetPrices[inv.assetName]?.currentPrice || 0) * inv.amount,
-      }));
+      const investmentsToAnalyze = investments.map((inv) => {
+        const priceData = assetPrices[inv.assetName];
+        return {
+          accountName: inv.accountName,
+          assetName: inv.assetName,
+          assetType: inv.assetType,
+          quantity: inv.amount,
+          status: inv.status || "active",
+          createdAt: inv.createdAt,
+          updatedAt: inv.updatedAt,
+          currentPrice: priceData?.currentPrice || 0,
+          previousClose: priceData?.previousClose || 0,
+          currentValue: (priceData?.currentPrice || 0) * inv.amount,
+        };
+      });
 
       const aiRes = await fetch("/api/ai/investment-analysis", {
         method: "POST",
@@ -351,8 +359,11 @@ const AssetsPage: React.FC = () => {
       title: "Status",
       dataIndex: "status",
       key: "status",
-      render: (text: string) =>
-        text ? <Tag>{text.toUpperCase()}</Tag> : "—",
+      render: (status: string) => {
+        if (!status) return "—";
+        const color = status === "active" ? "green" : "red";
+        return <Tag color={color}>{status.toUpperCase()}</Tag>;
+      },
     },
     {
       title: "Date Added",
